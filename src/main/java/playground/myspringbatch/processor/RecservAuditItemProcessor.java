@@ -2,16 +2,15 @@ package playground.myspringbatch.processor;
 
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
-import playground.myspringbatch.model.InputItem;
 import playground.myspringbatch.model.OutputItem;
 
 @Component(value ="recservAuditItemProcessor" )
-public class RecservAuditItemProcessor implements ItemProcessor<InputItem, OutputItem> {
+public class RecservAuditItemProcessor implements ItemProcessor<String, OutputItem> {
 
     @Override
-    public OutputItem process(InputItem inputItem) throws Exception {
+    public OutputItem process(String inputItem) throws Exception {
         OutputItem outputItem = new OutputItem();
-        outputItem.setName(inputItem.getName());
+        outputItem.setName(inputItem);
         return outputItem;
     }
 }
