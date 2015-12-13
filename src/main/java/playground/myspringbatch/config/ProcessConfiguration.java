@@ -5,6 +5,11 @@ import com.amazonaws.auth.AWSCredentialsProviderChain;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.ListObjectsRequest;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
+import org.apache.commons.io.IOUtils;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
@@ -25,10 +30,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
 import playground.myspringbatch.model.OutputItem;
 import playground.myspringbatch.processor.RecservAuditItemProcessor;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.MalformedURLException;
 
 /**
@@ -49,12 +59,30 @@ public class ProcessConfiguration {
     @Bean
     public ItemReader<String> reader(AmazonS3 amazonS3) throws MalformedURLException {
 
+        StringBuilder builder = new StringBuilder();
+        ListObjectsRequest listObjectsRequest = new ListObjectsRequest()
+                .withBucketName("")
+                .withPrefix("");
 
-        FlatFileItemReader<String> reader = new FlatFileItemReader<>();
-        reader.setResource(new ClassPathResource("input.txt"));
+      for (S3ObjectSummary objectSummary : amazonS3.listObjects(listObjectsRequest).getObjectSummaries()) {
 
-        reader.setLineMapper(new PassThroughLineMapper());
-        return reader;
+          String key = objectSummary.getKey();
+          String bucket = objectSummary.getBucketName();
+          Reader ioReader = new InputStreamReader(amazonS3.getObject(new GetObjectRequest(bucket, key)).getObjectContent());
+
+          try {
+              builder.append(IOUtils.toString(ioReader));
+          } catch (IOException e) {
+              throw new IllegalArgumentException(e.getMessage());
+          }
+      }
+
+        final FlatFileItemReader<String> fileItemReader = new FlatFileItemReader<>();
+        fileItemReader.setResource(new ByteArrayResource(builder.toString().getBytes()));
+
+        fileItemReader.setLineMapper(new PassThroughLineMapper());
+
+        return fileItemReader;
     }
 
     @Bean
